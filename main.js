@@ -17,7 +17,7 @@ let trackerNames = JSON.parse(
 );
 
 /*************************************************
- * COLOR GENERATOR (STABLE PER SERIAL)
+ * COLOR GENERATOR
  *************************************************/
 function colorFromString(str) {
   let hash = 0;
@@ -56,12 +56,15 @@ async function fetchTrackers() {
   const res = await fetch(`${BACKEND_URL}/stats`);
   const data = await res.json();
 
-  trackers = Object.keys(data).map(serial => ({
-    serial,
-    name: trackerNames[serial] || serial,
-    color: colorFromString(serial),
-    points: data[serial].points || 0
-  }));
+  trackers = Object.keys(data).map(serial => {
+    const name = trackerNames[serial] || serial;
+    return {
+      serial,
+      name,
+      color: colorFromString(name), // 🔥 COLOR FOLLOWS NAME
+      points: data[serial].points || 0
+    };
+  });
 
   trackers.forEach(t => {
     if (!(t.serial in visibleTrackers)) {
@@ -128,7 +131,7 @@ function renderTrackerList() {
         if (newName && newName.trim()) {
           trackerNames[tracker.serial] = newName.trim();
           saveTrackerNames();
-          fetchTrackers();
+          fetchTrackers(); // 🔥 recompute colors
         }
       };
 
@@ -177,17 +180,15 @@ async function refreshMap() {
   polylines = {};
 
   for (const tracker of trackers) {
-    const serial = tracker.serial;
+    if (hiddenTrackers.has(tracker.serial)) continue;
+    if (!visibleTrackers[tracker.serial]) continue;
 
-    if (hiddenTrackers.has(serial)) continue;
-    if (!visibleTrackers[serial]) continue;
-
-    const res = await fetch(`${BACKEND_URL}/data/${serial}`);
+    const res = await fetch(`${BACKEND_URL}/data/${tracker.serial}`);
     const geojson = await res.json();
 
     if (!geojson.features?.length) continue;
 
-    markers[serial] = [];
+    markers[tracker.serial] = [];
     const latlngs = [];
 
     geojson.features.forEach(f => {
@@ -202,10 +203,10 @@ async function refreshMap() {
         fillOpacity: 0.8
       }).addTo(map);
 
-      markers[serial].push(marker);
+      markers[tracker.serial].push(marker);
     });
 
-    polylines[serial] = L.polyline(latlngs, {
+    polylines[tracker.serial] = L.polyline(latlngs, {
       color: tracker.color,
       weight: 3
     }).addTo(map);
