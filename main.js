@@ -16,6 +16,10 @@ let trackerNames = JSON.parse(
   localStorage.getItem("trackerNames") || "{}"
 );
 
+let trackerColorKeys = JSON.parse(
+  localStorage.getItem("trackerColorKeys") || "{}"
+);
+
 /*************************************************
  * COLOR GENERATOR
  *************************************************/
@@ -26,6 +30,10 @@ function colorFromString(str) {
   }
   const hue = Math.abs(hash) % 360;
   return `hsl(${hue}, 70%, 50%)`;
+}
+
+function generateColorKey() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 /*************************************************
@@ -39,9 +47,13 @@ function saveHiddenTrackers() {
 }
 
 function saveTrackerNames() {
+  localStorage.setItem("trackerNames", JSON.stringify(trackerNames));
+}
+
+function saveTrackerColorKeys() {
   localStorage.setItem(
-    "trackerNames",
-    JSON.stringify(trackerNames)
+    "trackerColorKeys",
+    JSON.stringify(trackerColorKeys)
   );
 }
 
@@ -58,11 +70,18 @@ async function fetchTrackers() {
 
   trackers = Object.keys(data).map(serial => {
     const name = trackerNames[serial] || serial;
+
+    // Ensure a color key exists
+    if (!trackerColorKeys[serial]) {
+      trackerColorKeys[serial] = generateColorKey();
+      saveTrackerColorKeys();
+    }
+
     return {
       serial,
       name,
-      color: colorFromString(name), // 🔥 COLOR FOLLOWS NAME
-      points: data[serial].points || 0
+      points: data[serial].points || 0,
+      color: colorFromString(trackerColorKeys[serial])
     };
   });
 
@@ -130,8 +149,13 @@ function renderTrackerList() {
         );
         if (newName && newName.trim()) {
           trackerNames[tracker.serial] = newName.trim();
+
+          // 🔥 Force NEW color on rename
+          trackerColorKeys[tracker.serial] = generateColorKey();
+
           saveTrackerNames();
-          fetchTrackers(); // 🔥 recompute colors
+          saveTrackerColorKeys();
+          fetchTrackers();
         }
       };
 
@@ -186,7 +210,7 @@ async function refreshMap() {
     const res = await fetch(`${BACKEND_URL}/data/${tracker.serial}`);
     const geojson = await res.json();
 
-    if (!geojson.features?.length) continue;
+    if (!geojson.features || geojson.features.length === 0) continue;
 
     markers[tracker.serial] = [];
     const latlngs = [];
