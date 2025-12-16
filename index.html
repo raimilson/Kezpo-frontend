@@ -19,9 +19,9 @@
       height: 100vh;
     }
 
-    /* 🔵 LEFT SIDEBAR — WIDER */
+    /* LEFT SIDEBAR */
     #sidebar {
-      width: 380px;               /* ← increased from ~280px */
+      width: 380px;
       min-width: 380px;
       padding: 12px;
       border-right: 1px solid #ddd;
@@ -35,31 +35,36 @@
       font-size: 18px;
     }
 
-    /* Tracker rows */
+    /* Tracker row layout */
     #trackerList div {
-      margin-bottom: 6px;
       display: flex;
       align-items: center;
-      flex-wrap: nowrap;
+      gap: 6px;
+      margin-bottom: 6px;
     }
 
-    /* Tracker label */
+    /* Checkbox */
+    #trackerList input[type="checkbox"] {
+      flex-shrink: 0;
+    }
+
+    /* Tracker name */
     #trackerList span {
-      white-space: nowrap;        /* keep long names on one line */
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 220px;           /* prevents buttons being pushed off */
-      display: inline-block;
-      vertical-align: middle;
+      flex-grow: 1;          /* 🔑 takes remaining space */
+      min-width: 0;          /* required for ellipsis */
     }
 
+    /* Buttons container */
     #trackerList button {
       margin-left: 6px;
       font-size: 12px;
       flex-shrink: 0;
     }
 
-    /* 🗺 MAP */
+    /* MAP */
     #map {
       flex: 1;
       height: 100vh;
