@@ -12,6 +12,22 @@ let hiddenTrackers = new Set(
   JSON.parse(localStorage.getItem("hiddenTrackers") || "[]")
 );
 
+let trackerNames = JSON.parse(
+  localStorage.getItem("trackerNames") || "{}"
+);
+
+/*************************************************
+ * COLOR GENERATOR (STABLE PER SERIAL)
+ *************************************************/
+function colorFromString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 50%)`;
+}
+
 /*************************************************
  * HELPERS
  *************************************************/
@@ -22,21 +38,29 @@ function saveHiddenTrackers() {
   );
 }
 
+function saveTrackerNames() {
+  localStorage.setItem(
+    "trackerNames",
+    JSON.stringify(trackerNames)
+  );
+}
+
 function clearElement(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
 /*************************************************
- * FETCH TRACKERS (FIXED FOR /stats SHAPE)
+ * FETCH TRACKERS
  *************************************************/
 async function fetchTrackers() {
   const res = await fetch(`${BACKEND_URL}/stats`);
   const data = await res.json();
 
-  // Backend returns { SERIAL: { points, first, last } }
   trackers = Object.keys(data).map(serial => ({
     serial,
-    ...data[serial]
+    name: trackerNames[serial] || serial,
+    color: colorFromString(serial),
+    points: data[serial].points || 0
   }));
 
   trackers.forEach(t => {
@@ -84,8 +108,29 @@ function renderTrackerList() {
       };
 
       const label = document.createElement("span");
-      label.textContent = ` ${tracker.serial} `;
-      label.style.marginRight = "6px";
+      label.textContent = ` ${tracker.name} `;
+      label.style.color = tracker.color;
+      label.style.fontWeight = "bold";
+      label.style.marginRight = "4px";
+
+      const count = document.createElement("span");
+      count.textContent = `(${tracker.points})`;
+      count.style.fontSize = "12px";
+      count.style.marginRight = "6px";
+
+      const renameBtn = document.createElement("button");
+      renameBtn.textContent = "Rename";
+      renameBtn.onclick = () => {
+        const newName = prompt(
+          "Enter new name for tracker:",
+          tracker.name
+        );
+        if (newName && newName.trim()) {
+          trackerNames[tracker.serial] = newName.trim();
+          saveTrackerNames();
+          fetchTrackers();
+        }
+      };
 
       const removeBtn = document.createElement("button");
       removeBtn.textContent = "Remove";
@@ -98,6 +143,8 @@ function renderTrackerList() {
 
       row.appendChild(checkbox);
       row.appendChild(label);
+      row.appendChild(count);
+      row.appendChild(renameBtn);
       row.appendChild(removeBtn);
       list.appendChild(row);
     });
@@ -121,7 +168,6 @@ function initMap() {
 }
 
 async function refreshMap() {
-  // Clear existing layers
   for (const serial of Object.keys(markers)) {
     markers[serial].forEach(m => map.removeLayer(m));
     polylines[serial]?.remove();
@@ -139,7 +185,7 @@ async function refreshMap() {
     const res = await fetch(`${BACKEND_URL}/data/${serial}`);
     const geojson = await res.json();
 
-    if (!geojson.features || geojson.features.length === 0) continue;
+    if (!geojson.features?.length) continue;
 
     markers[serial] = [];
     const latlngs = [];
@@ -151,14 +197,17 @@ async function refreshMap() {
 
       const marker = L.circleMarker(latlng, {
         radius: 4,
-        color: "blue"
+        color: tracker.color,
+        fillColor: tracker.color,
+        fillOpacity: 0.8
       }).addTo(map);
 
       markers[serial].push(marker);
     });
 
     polylines[serial] = L.polyline(latlngs, {
-      color: "blue"
+      color: tracker.color,
+      weight: 3
     }).addTo(map);
   }
 }
