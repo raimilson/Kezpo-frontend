@@ -5,13 +5,12 @@
   <title>Kezpo Tracker Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Leaflet CSS (NO integrity, NO crossorigin) -->
+  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
 
-  <!-- Basic layout styles -->
   <style>
     body {
       margin: 0;
@@ -20,12 +19,15 @@
       height: 100vh;
     }
 
+    /* 🔵 LEFT SIDEBAR — WIDER */
     #sidebar {
-      width: 280px;
+      width: 380px;               /* ← increased from ~280px */
+      min-width: 380px;
       padding: 12px;
       border-right: 1px solid #ddd;
       overflow-y: auto;
       background: #fafafa;
+      box-sizing: border-box;
     }
 
     #sidebar h2 {
@@ -33,18 +35,34 @@
       font-size: 18px;
     }
 
+    /* Tracker rows */
     #trackerList div {
       margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+
+    /* Tracker label */
+    #trackerList span {
+      white-space: nowrap;        /* keep long names on one line */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;           /* prevents buttons being pushed off */
+      display: inline-block;
+      vertical-align: middle;
     }
 
     #trackerList button {
       margin-left: 6px;
       font-size: 12px;
+      flex-shrink: 0;
     }
 
+    /* 🗺 MAP */
     #map {
       flex: 1;
-      height: 100vh; /* IMPORTANT: map must have height */
+      height: 100vh;
     }
   </style>
 </head>
@@ -59,7 +77,7 @@
   <!-- Map -->
   <div id="map"></div>
 
-  <!-- Leaflet JS (NO integrity, NO crossorigin) -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- App JS -->
