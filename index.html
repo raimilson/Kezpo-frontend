@@ -15,27 +15,37 @@
     body {
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      display: flex;
       height: 100vh;
+      overflow: hidden;
     }
 
-    /* LEFT SIDEBAR */
+    /* ===== LAYOUT ===== */
+    .app {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* ===== SIDEBAR ===== */
     #sidebar {
       width: 380px;
       min-width: 380px;
-      padding: 12px;
-      border-right: 1px solid #ddd;
-      overflow-y: auto;
       background: #fafafa;
+      border-right: 1px solid #ddd;
+      padding: 12px;
       box-sizing: border-box;
+      overflow-y: auto;
+      transition: transform 0.25s ease;
+      z-index: 1000;
     }
 
-    #sidebar h2 {
-      margin-top: 0;
-      font-size: 18px;
+    /* ===== MAP ===== */
+    #map {
+      flex: 1;
+      height: 100%;
     }
 
-    /* Tracker row layout */
+    /* ===== TRACKER ROW ===== */
     #trackerList div {
       display: flex;
       align-items: center;
@@ -43,47 +53,98 @@
       margin-bottom: 6px;
     }
 
-    /* Checkbox */
     #trackerList input[type="checkbox"] {
       flex-shrink: 0;
     }
 
-    /* Tracker name */
     #trackerList span {
+      flex-grow: 1;
+      min-width: 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      flex-grow: 1;          /* 🔑 takes remaining space */
-      min-width: 0;          /* required for ellipsis */
     }
 
-    /* Buttons container */
     #trackerList button {
-      margin-left: 6px;
       font-size: 12px;
       flex-shrink: 0;
     }
 
-    /* MAP */
-    #map {
-      flex: 1;
-      height: 100vh;
+    /* ===== TOGGLE BUTTON ===== */
+    #toggleSidebar {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1100;
+      padding: 8px 12px;
+      font-size: 14px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: none;
+    }
+
+    /* ===== MOBILE RULES ===== */
+    @media (max-width: 768px) {
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100%;
+        transform: translateX(-100%);
+      }
+
+      #sidebar.open {
+        transform: translateX(0);
+      }
+
+      #toggleSidebar {
+        display: block;
+      }
+
+      .app {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 
 <body>
-  <!-- Sidebar -->
-  <div id="sidebar">
-    <h2>Trackers</h2>
-    <div id="trackerList"></div>
-  </div>
+  <!-- MOBILE TOGGLE BUTTON -->
+  <button id="toggleSidebar">☰ Trackers</button>
 
-  <!-- Map -->
-  <div id="map"></div>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <h2>Trackers</h2>
+      <div id="trackerList"></div>
+    </div>
+
+    <!-- MAP -->
+    <div id="map"></div>
+  </div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Sidebar toggle logic -->
+  <script>
+    const sidebar = document.getElementById("sidebar");
+    const toggleBtn = document.getElementById("toggleSidebar");
+
+    toggleBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("open");
+    });
+
+    // Hide sidebar when clicking map (mobile UX)
+    document.getElementById("map").addEventListener("click", () => {
+      if (window.innerWidth <= 768) {
+        sidebar.classList.remove("open");
+      }
+    });
+  </script>
 
   <!-- App JS -->
   <script src="./main.js"></script>
