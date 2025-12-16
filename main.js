@@ -21,7 +21,7 @@ let trackerColorKeys = JSON.parse(
 );
 
 /*************************************************
- * COLOR GENERATOR
+ * COLOR GENERATOR (FOR LINES ONLY)
  *************************************************/
 function colorFromString(str) {
   let hash = 0;
@@ -63,8 +63,7 @@ function clearElement(el) {
 
 function formatTimestamp(ts) {
   if (!ts) return "N/A";
-  const d = new Date(ts * 1000); // unix seconds → ms
-  return d.toLocaleString();
+  return new Date(ts * 1000).toLocaleString();
 }
 
 /*************************************************
@@ -86,7 +85,7 @@ async function fetchTrackers() {
       serial,
       name,
       points: data[serial].points || 0,
-      color: colorFromString(trackerColorKeys[serial])
+      lineColor: colorFromString(trackerColorKeys[serial])
     };
   });
 
@@ -136,7 +135,7 @@ function renderTrackerList() {
 
       const label = document.createElement("span");
       label.textContent = ` ${tracker.name} `;
-      label.style.color = tracker.color;
+      label.style.color = tracker.lineColor;
       label.style.fontWeight = "bold";
       label.style.marginRight = "4px";
 
@@ -151,7 +150,7 @@ function renderTrackerList() {
         const newName = prompt("Enter new name:", tracker.name);
         if (newName && newName.trim()) {
           trackerNames[tracker.serial] = newName.trim();
-          trackerColorKeys[tracker.serial] = generateColorKey();
+          trackerColorKeys[tracker.serial] = generateColorKey(); // new line color
           saveTrackerNames();
           saveTrackerColorKeys();
           fetchTrackers();
@@ -227,11 +226,12 @@ async function refreshMap() {
         Time: ${formatTimestamp(ts)}
       `;
 
+      // 🔴 POINTS: ALWAYS BLACK
       const marker = L.circleMarker(latlng, {
         radius: 4,
-        color: tracker.color,
-        fillColor: tracker.color,
-        fillOpacity: 0.8
+        color: "#000",
+        fillColor: "#000",
+        fillOpacity: 0.9
       })
         .bindPopup(popupHtml)
         .addTo(map);
@@ -239,8 +239,9 @@ async function refreshMap() {
       markers[tracker.serial].push(marker);
     });
 
+    // 🎨 LINES: TRACKER COLOR
     polylines[tracker.serial] = L.polyline(latlngs, {
-      color: tracker.color,
+      color: tracker.lineColor,
       weight: 3
     }).addTo(map);
   }
