@@ -61,6 +61,12 @@ function clearElement(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
+function formatTimestamp(ts) {
+  if (!ts) return "N/A";
+  const d = new Date(ts * 1000); // unix seconds → ms
+  return d.toLocaleString();
+}
+
 /*************************************************
  * FETCH TRACKERS
  *************************************************/
@@ -71,7 +77,6 @@ async function fetchTrackers() {
   trackers = Object.keys(data).map(serial => {
     const name = trackerNames[serial] || serial;
 
-    // Ensure a color key exists
     if (!trackerColorKeys[serial]) {
       trackerColorKeys[serial] = generateColorKey();
       saveTrackerColorKeys();
@@ -143,16 +148,10 @@ function renderTrackerList() {
       const renameBtn = document.createElement("button");
       renameBtn.textContent = "Rename";
       renameBtn.onclick = () => {
-        const newName = prompt(
-          "Enter new name for tracker:",
-          tracker.name
-        );
+        const newName = prompt("Enter new name:", tracker.name);
         if (newName && newName.trim()) {
           trackerNames[tracker.serial] = newName.trim();
-
-          // 🔥 Force NEW color on rename
           trackerColorKeys[tracker.serial] = generateColorKey();
-
           saveTrackerNames();
           saveTrackerColorKeys();
           fetchTrackers();
@@ -217,15 +216,25 @@ async function refreshMap() {
 
     geojson.features.forEach(f => {
       const [lng, lat] = f.geometry.coordinates;
+      const ts = f.properties?.timestamp;
       const latlng = [lat, lng];
       latlngs.push(latlng);
+
+      const popupHtml = `
+        <strong>${tracker.name}</strong><br/>
+        Lat: ${lat.toFixed(6)}<br/>
+        Lng: ${lng.toFixed(6)}<br/>
+        Time: ${formatTimestamp(ts)}
+      `;
 
       const marker = L.circleMarker(latlng, {
         radius: 4,
         color: tracker.color,
         fillColor: tracker.color,
         fillOpacity: 0.8
-      }).addTo(map);
+      })
+        .bindPopup(popupHtml)
+        .addTo(map);
 
       markers[tracker.serial].push(marker);
     });
