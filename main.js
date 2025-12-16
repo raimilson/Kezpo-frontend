@@ -27,13 +27,17 @@ function clearElement(el) {
 }
 
 /*************************************************
- * FETCH TRACKERS
+ * FETCH TRACKERS (FIXED FOR /stats SHAPE)
  *************************************************/
 async function fetchTrackers() {
   const res = await fetch(`${BACKEND_URL}/stats`);
   const data = await res.json();
 
-  trackers = data.trackers || [];
+  // Backend returns { SERIAL: { points, first, last } }
+  trackers = Object.keys(data).map(serial => ({
+    serial,
+    ...data[serial]
+  }));
 
   trackers.forEach(t => {
     if (!(t.serial in visibleTrackers)) {
@@ -52,7 +56,6 @@ function renderTrackerList() {
   const list = document.getElementById("trackerList");
   clearElement(list);
 
-  // Restore button
   if (hiddenTrackers.size > 0) {
     const restoreBtn = document.createElement("button");
     restoreBtn.textContent = "Show all trackers";
@@ -82,7 +85,7 @@ function renderTrackerList() {
 
       const label = document.createElement("span");
       label.textContent = ` ${tracker.serial} `;
-      label.style.marginRight = "8px";
+      label.style.marginRight = "6px";
 
       const removeBtn = document.createElement("button");
       removeBtn.textContent = "Remove";
@@ -101,7 +104,7 @@ function renderTrackerList() {
 }
 
 /*************************************************
- * MAP HANDLING (existing logic preserved)
+ * MAP
  *************************************************/
 let map;
 let markers = {};
@@ -109,6 +112,7 @@ let polylines = {};
 
 function initMap() {
   map = L.map("map").setView([0, 0], 2);
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors"
   }).addTo(map);
@@ -117,6 +121,7 @@ function initMap() {
 }
 
 async function refreshMap() {
+  // Clear existing layers
   for (const serial of Object.keys(markers)) {
     markers[serial].forEach(m => map.removeLayer(m));
     polylines[serial]?.remove();
@@ -131,16 +136,17 @@ async function refreshMap() {
     if (hiddenTrackers.has(serial)) continue;
     if (!visibleTrackers[serial]) continue;
 
-    const res = await fetch(`${BACKEND_URL}/positions?serial=${serial}`);
-    const points = await res.json();
+    const res = await fetch(`${BACKEND_URL}/data/${serial}`);
+    const geojson = await res.json();
 
-    if (!points.length) continue;
+    if (!geojson.features || geojson.features.length === 0) continue;
 
     markers[serial] = [];
     const latlngs = [];
 
-    points.forEach(p => {
-      const latlng = [p.latitude, p.longitude];
+    geojson.features.forEach(f => {
+      const [lng, lat] = f.geometry.coordinates;
+      const latlng = [lat, lng];
       latlngs.push(latlng);
 
       const marker = L.circleMarker(latlng, {
