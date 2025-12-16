@@ -1,54 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Kezpo Tracker</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Kezpo Tracker Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j7kP5QbXtZLhYVEhYfM3bA1pGkG6LkLJrC3hRyk="
+    crossorigin=""
+  ></script>
 
-<style>
-  body, html { margin:0; height:100%; }
-  #map { width:100%; height:100%; }
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      height: 100vh;
+    }
 
-  #statsPanel {
-    position:absolute;
-    top:12px;
-    right:12px;
-    background:rgba(0,0,0,0.75);
-    color:white;
-    padding:14px;
-    border-radius:10px;
-    width:270px;
-    max-height:80vh;
-    overflow-y:auto;
-    font-size:14px;
-    z-index:1000;
-    backdrop-filter: blur(4px);
-  }
-  .trackerRow {
-    margin-bottom:14px;
-    padding-bottom:10px;
-    border-bottom:1px solid #666;
-  }
-  .trackerRow:last-child {
-    border:none;
-  }
-  input[type="checkbox"] {
-    width:18px;
-    height:18px;
-    margin-right:8px;
-    vertical-align:middle;
-  }
-</style>
+    #sidebar {
+      width: 280px;
+      padding: 12px;
+      border-right: 1px solid #ddd;
+      overflow-y: auto;
+      background: #fafafa;
+    }
+
+    #sidebar h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    #trackerList button {
+      margin-left: 6px;
+      font-size: 12px;
+    }
+
+    #map {
+      flex: 1;
+    }
+  </style>
 </head>
+
 <body>
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <h2>Trackers</h2>
+    <div id="trackerList"></div>
+  </div>
 
-<div id="statsPanel"></div>
-<div id="map"></div>
+  <!-- Map -->
+  <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="main.js"></script>
-
+  <!-- App JS -->
+  <script src="main.js"></script>
 </body>
 </html>
