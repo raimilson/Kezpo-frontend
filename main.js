@@ -1,253 +1,166 @@
-/*************************************************
- * CONFIG
- *************************************************/
 const BACKEND_URL = "https://kezpo-backend.onrender.com";
 
-/*************************************************
- * STATE
- *************************************************/
+/* ---------- STATE ---------- */
 let trackers = [];
 let visibleTrackers = {};
-let hiddenTrackers = new Set(
-  JSON.parse(localStorage.getItem("hiddenTrackers") || "[]")
-);
+let hiddenTrackers = new Set(JSON.parse(localStorage.getItem("hiddenTrackers") || "[]"));
+let selectedTrackers = new Set();     // 🔥 NEW
+let isolatedTrackers = new Set();     // 🔥 NEW
 
-let trackerNames = JSON.parse(
-  localStorage.getItem("trackerNames") || "{}"
-);
+let trackerNames = JSON.parse(localStorage.getItem("trackerNames") || {});
+let trackerColorKeys = JSON.parse(localStorage.getItem("trackerColorKeys") || {});
 
-let trackerColorKeys = JSON.parse(
-  localStorage.getItem("trackerColorKeys") || "{}"
-);
-
-/*************************************************
- * COLOR GENERATOR (FOR LINES ONLY)
- *************************************************/
+/* ---------- COLOR ---------- */
 function colorFromString(str) {
   let hash = 0;
-  for (let i = 0; i < str.length; i++) {
+  for (let i = 0; i < str.length; i++)
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 70%, 50%)`;
+  return `hsl(${Math.abs(hash) % 360},70%,50%)`;
 }
-
-function generateColorKey() {
+function genKey() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-/*************************************************
- * HELPERS
- *************************************************/
-function saveHiddenTrackers() {
-  localStorage.setItem(
-    "hiddenTrackers",
-    JSON.stringify(Array.from(hiddenTrackers))
-  );
+/* ---------- HELPERS ---------- */
+function formatTimestamp(ts) {
+  return ts ? new Date(ts * 1000).toLocaleString() : "N/A";
 }
-
-function saveTrackerNames() {
-  localStorage.setItem("trackerNames", JSON.stringify(trackerNames));
-}
-
-function saveTrackerColorKeys() {
-  localStorage.setItem(
-    "trackerColorKeys",
-    JSON.stringify(trackerColorKeys)
-  );
-}
-
-function clearElement(el) {
+function clear(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-function formatTimestamp(ts) {
-  if (!ts) return "N/A";
-  return new Date(ts * 1000).toLocaleString();
-}
-
-/*************************************************
- * FETCH TRACKERS
- *************************************************/
+/* ---------- FETCH ---------- */
 async function fetchTrackers() {
   const res = await fetch(`${BACKEND_URL}/stats`);
   const data = await res.json();
 
   trackers = Object.keys(data).map(serial => {
-    const name = trackerNames[serial] || serial;
-
     if (!trackerColorKeys[serial]) {
-      trackerColorKeys[serial] = generateColorKey();
-      saveTrackerColorKeys();
+      trackerColorKeys[serial] = genKey();
     }
-
     return {
       serial,
-      name,
-      points: data[serial].points || 0,
-      lineColor: colorFromString(trackerColorKeys[serial])
+      name: trackerNames[serial] || serial,
+      points: data[serial].points,
+      color: colorFromString(trackerColorKeys[serial])
     };
-  });
-
-  trackers.forEach(t => {
-    if (!(t.serial in visibleTrackers)) {
-      visibleTrackers[t.serial] = true;
-    }
   });
 
   renderTrackerList();
   refreshMap();
 }
 
-/*************************************************
- * RENDER TRACKER LIST
- *************************************************/
+/* ---------- LIST ---------- */
 function renderTrackerList() {
   const list = document.getElementById("trackerList");
-  clearElement(list);
+  clear(list);
 
-  if (hiddenTrackers.size > 0) {
-    const restoreBtn = document.createElement("button");
-    restoreBtn.textContent = "Show all trackers";
-    restoreBtn.style.marginBottom = "10px";
-    restoreBtn.onclick = () => {
-      hiddenTrackers.clear();
-      saveHiddenTrackers();
-      renderTrackerList();
+  trackers.forEach(t => {
+    if (hiddenTrackers.has(t.serial)) return;
+
+    const row = document.createElement("div");
+
+    // 🔥 select for isolate
+    const select = document.createElement("input");
+    select.type = "checkbox";
+    select.checked = selectedTrackers.has(t.serial);
+    select.onchange = () => {
+      select.checked
+        ? selectedTrackers.add(t.serial)
+        : selectedTrackers.delete(t.serial);
+    };
+
+    // visibility
+    const vis = document.createElement("input");
+    vis.type = "checkbox";
+    vis.checked = visibleTrackers[t.serial] ?? true;
+    vis.onchange = () => {
+      visibleTrackers[t.serial] = vis.checked;
       refreshMap();
     };
-    list.appendChild(restoreBtn);
-  }
 
-  trackers
-    .filter(t => !hiddenTrackers.has(t.serial))
-    .forEach(tracker => {
-      const row = document.createElement("div");
-      row.style.marginBottom = "6px";
+    const label = document.createElement("span");
+    label.textContent = `${t.name} (${t.points})`;
+    label.style.color = t.color;
 
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = visibleTrackers[tracker.serial];
-      checkbox.onchange = () => {
-        visibleTrackers[tracker.serial] = checkbox.checked;
-        refreshMap();
-      };
-
-      const label = document.createElement("span");
-      label.textContent = ` ${tracker.name} `;
-      label.style.color = tracker.lineColor;
-      label.style.fontWeight = "bold";
-      label.style.marginRight = "4px";
-
-      const count = document.createElement("span");
-      count.textContent = `(${tracker.points})`;
-      count.style.fontSize = "12px";
-      count.style.marginRight = "6px";
-
-      const renameBtn = document.createElement("button");
-      renameBtn.textContent = "Rename";
-      renameBtn.onclick = () => {
-        const newName = prompt("Enter new name:", tracker.name);
-        if (newName && newName.trim()) {
-          trackerNames[tracker.serial] = newName.trim();
-          trackerColorKeys[tracker.serial] = generateColorKey(); // new line color
-          saveTrackerNames();
-          saveTrackerColorKeys();
-          fetchTrackers();
-        }
-      };
-
-      const removeBtn = document.createElement("button");
-      removeBtn.textContent = "Remove";
-      removeBtn.onclick = () => {
-        hiddenTrackers.add(tracker.serial);
-        saveHiddenTrackers();
-        renderTrackerList();
-        refreshMap();
-      };
-
-      row.appendChild(checkbox);
-      row.appendChild(label);
-      row.appendChild(count);
-      row.appendChild(renameBtn);
-      row.appendChild(removeBtn);
-      list.appendChild(row);
-    });
+    row.append(select, vis, label);
+    list.appendChild(row);
+  });
 }
 
-/*************************************************
- * MAP
- *************************************************/
-let map;
-let markers = {};
-let polylines = {};
+/* ---------- MAP ---------- */
+let map, markers = {}, lines = {};
 
 function initMap() {
   map = L.map("map").setView([0, 0], 2);
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "&copy; OpenStreetMap contributors"
-  }).addTo(map);
-
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
   fetchTrackers();
 }
 
 async function refreshMap() {
-  for (const serial of Object.keys(markers)) {
-    markers[serial].forEach(m => map.removeLayer(m));
-    polylines[serial]?.remove();
-  }
-
+  Object.values(markers).flat().forEach(m => map.removeLayer(m));
+  Object.values(lines).forEach(l => map.removeLayer(l));
   markers = {};
-  polylines = {};
+  lines = {};
 
-  for (const tracker of trackers) {
-    if (hiddenTrackers.has(tracker.serial)) continue;
-    if (!visibleTrackers[tracker.serial]) continue;
+  for (const t of trackers) {
+    if (hiddenTrackers.has(t.serial)) continue;
+    if (visibleTrackers[t.serial] === false) continue;
+    if (isolatedTrackers.size && !isolatedTrackers.has(t.serial)) continue;
 
-    const res = await fetch(`${BACKEND_URL}/data/${tracker.serial}`);
-    const geojson = await res.json();
+    const res = await fetch(`${BACKEND_URL}/data/${t.serial}`);
+    const geo = await res.json();
+    if (!geo.features?.length) continue;
 
-    if (!geojson.features || geojson.features.length === 0) continue;
-
-    markers[tracker.serial] = [];
+    markers[t.serial] = [];
     const latlngs = [];
 
-    geojson.features.forEach(f => {
+    geo.features.forEach(f => {
       const [lng, lat] = f.geometry.coordinates;
-      const ts = f.properties?.timestamp;
-      const latlng = [lat, lng];
-      latlngs.push(latlng);
+      latlngs.push([lat, lng]);
 
-      const popupHtml = `
-        <strong>${tracker.name}</strong><br/>
-        Lat: ${lat.toFixed(6)}<br/>
-        Lng: ${lng.toFixed(6)}<br/>
-        Time: ${formatTimestamp(ts)}
-      `;
-
-      // 🔴 POINTS: ALWAYS BLACK
-      const marker = L.circleMarker(latlng, {
-        radius: 4,
+      const m = L.circleMarker([lat, lng], {
+        radius: 6,
         color: "#000",
         fillColor: "#000",
         fillOpacity: 0.9
       })
-        .bindPopup(popupHtml)
+        .bindPopup(
+          `<b>${t.name}</b><br>Lat: ${lat}<br>Lng: ${lng}<br>${formatTimestamp(f.properties.timestamp)}`
+        )
         .addTo(map);
 
-      markers[tracker.serial].push(marker);
+      markers[t.serial].push(m);
     });
 
-    // 🎨 LINES: TRACKER COLOR
-    polylines[tracker.serial] = L.polyline(latlngs, {
-      color: tracker.lineColor,
+    lines[t.serial] = L.polyline(latlngs, {
+      color: t.color,
       weight: 3
     }).addTo(map);
   }
 }
 
-/*************************************************
- * INIT
- *************************************************/
+/* ---------- ISOLATE CONTROLS ---------- */
+document.getElementById("isolateBtn").onclick = () => {
+  isolatedTrackers = new Set(selectedTrackers);
+  refreshMap();
+};
+
+document.getElementById("clearIsolationBtn").onclick = () => {
+  // 1. Clear isolation + selection
+  isolatedTrackers.clear();
+  selectedTrackers.clear();
+
+  // 2. Reset visibility (important)
+  trackers.forEach(t => {
+    visibleTrackers[t.serial] = true;
+  });
+
+  // 3. Re-render UI + map
+  renderTrackerList();
+  refreshMap();
+};
+
+
+/* ---------- INIT ---------- */
 document.addEventListener("DOMContentLoaded", initMap);
