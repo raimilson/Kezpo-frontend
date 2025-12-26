@@ -1,35 +1,45 @@
 const BACKEND_URL = "https://kezpo-backend.onrender.com";
 
-/* ---------- STATE ---------- */
+/* ================= STATE ================= */
 let trackers = [];
 let visibleTrackers = {};
-let hiddenTrackers = new Set(JSON.parse(localStorage.getItem("hiddenTrackers") || "[]"));
-let selectedTrackers = new Set();     // 🔥 NEW
-let isolatedTrackers = new Set();     // 🔥 NEW
+let hiddenTrackers = new Set(
+  JSON.parse(localStorage.getItem("hiddenTrackers") || "[]")
+);
 
-let trackerNames = JSON.parse(localStorage.getItem("trackerNames") || {});
-let trackerColorKeys = JSON.parse(localStorage.getItem("trackerColorKeys") || {});
+// 🔥 Isolation state
+let isolatedTrackers = new Set();
 
-/* ---------- COLOR ---------- */
+let trackerNames = JSON.parse(
+  localStorage.getItem("trackerNames") || "{}"
+);
+
+let trackerColorKeys = JSON.parse(
+  localStorage.getItem("trackerColorKeys") || "{}"
+);
+
+/* ================= UTILS ================= */
 function colorFromString(str) {
   let hash = 0;
-  for (let i = 0; i < str.length; i++)
+  for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
   return `hsl(${Math.abs(hash) % 360},70%,50%)`;
 }
+
 function genKey() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-/* ---------- HELPERS ---------- */
 function formatTimestamp(ts) {
   return ts ? new Date(ts * 1000).toLocaleString() : "N/A";
 }
+
 function clear(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-/* ---------- FETCH ---------- */
+/* ================= FETCH ================= */
 async function fetchTrackers() {
   const res = await fetch(`${BACKEND_URL}/stats`);
   const data = await res.json();
@@ -38,19 +48,27 @@ async function fetchTrackers() {
     if (!trackerColorKeys[serial]) {
       trackerColorKeys[serial] = genKey();
     }
+
     return {
       serial,
       name: trackerNames[serial] || serial,
-      points: data[serial].points,
-      color: colorFromString(trackerColorKeys[serial])
+      points: data[serial].points || 0,
+      color: colorFromString(trackerColorKeys[serial]),
+      selected: false // 🔥 selection lives HERE
     };
+  });
+
+  trackers.forEach(t => {
+    if (!(t.serial in visibleTrackers)) {
+      visibleTrackers[t.serial] = true;
+    }
   });
 
   renderTrackerList();
   refreshMap();
 }
 
-/* ---------- LIST ---------- */
+/* ================= LIST ================= */
 function renderTrackerList() {
   const list = document.getElementById("trackerList");
   clear(list);
@@ -59,37 +77,75 @@ function renderTrackerList() {
     if (hiddenTrackers.has(t.serial)) return;
 
     const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "6px";
+    row.style.marginBottom = "6px";
 
-    // 🔥 select for isolate
+    /* 🔥 select for isolation */
     const select = document.createElement("input");
     select.type = "checkbox";
-    select.checked = selectedTrackers.has(t.serial);
+    select.checked = t.selected;
     select.onchange = () => {
-      select.checked
-        ? selectedTrackers.add(t.serial)
-        : selectedTrackers.delete(t.serial);
+      t.selected = select.checked;
     };
 
-    // visibility
+    /* visibility */
     const vis = document.createElement("input");
     vis.type = "checkbox";
-    vis.checked = visibleTrackers[t.serial] ?? true;
+    vis.checked = visibleTrackers[t.serial];
     vis.onchange = () => {
       visibleTrackers[t.serial] = vis.checked;
       refreshMap();
     };
 
+    /* label + metrics */
     const label = document.createElement("span");
     label.textContent = `${t.name} (${t.points})`;
+    label.style.flex = "1";
     label.style.color = t.color;
+    label.style.fontWeight = "bold";
 
-    row.append(select, vis, label);
+    /* rename */
+    const renameBtn = document.createElement("button");
+    renameBtn.textContent = "Rename";
+    renameBtn.onclick = () => {
+      const newName = prompt("New name:", t.name);
+      if (!newName) return;
+      trackerNames[t.serial] = newName;
+      localStorage.setItem("trackerNames", JSON.stringify(trackerNames));
+      fetchTrackers();
+    };
+
+    /* remove (hide only) */
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = "Remove";
+    removeBtn.onclick = () => {
+      hiddenTrackers.add(t.serial);
+      localStorage.setItem(
+        "hiddenTrackers",
+        JSON.stringify(Array.from(hiddenTrackers))
+      );
+      renderTrackerList();
+      refreshMap();
+    };
+
+    row.append(
+      select,
+      vis,
+      label,
+      renameBtn,
+      removeBtn
+    );
+
     list.appendChild(row);
   });
 }
 
-/* ---------- MAP ---------- */
-let map, markers = {}, lines = {};
+/* ================= MAP ================= */
+let map;
+let markers = {};
+let lines = {};
 
 function initMap() {
   map = L.map("map").setView([0, 0], 2);
@@ -105,7 +161,9 @@ async function refreshMap() {
 
   for (const t of trackers) {
     if (hiddenTrackers.has(t.serial)) continue;
-    if (visibleTrackers[t.serial] === false) continue;
+    if (!visibleTrackers[t.serial]) continue;
+
+    // 🔥 isolation filter
     if (isolatedTrackers.size && !isolatedTrackers.has(t.serial)) continue;
 
     const res = await fetch(`${BACKEND_URL}/data/${t.serial}`);
@@ -126,7 +184,10 @@ async function refreshMap() {
         fillOpacity: 0.9
       })
         .bindPopup(
-          `<b>${t.name}</b><br>Lat: ${lat}<br>Lng: ${lng}<br>${formatTimestamp(f.properties.timestamp)}`
+          `<b>${t.name}</b><br>
+           Lat: ${lat}<br>
+           Lng: ${lng}<br>
+           ${formatTimestamp(f.properties.timestamp)}`
         )
         .addTo(map);
 
@@ -140,27 +201,25 @@ async function refreshMap() {
   }
 }
 
-/* ---------- ISOLATE CONTROLS ---------- */
+/* ================= ISOLATE BUTTONS ================= */
 document.getElementById("isolateBtn").onclick = () => {
-  isolatedTrackers = new Set(selectedTrackers);
+  isolatedTrackers = new Set(
+    trackers.filter(t => t.selected).map(t => t.serial)
+  );
   refreshMap();
 };
 
 document.getElementById("clearIsolationBtn").onclick = () => {
-  // 1. Clear isolation + selection
   isolatedTrackers.clear();
-  selectedTrackers.clear();
 
-  // 2. Reset visibility (important)
   trackers.forEach(t => {
+    t.selected = false;
     visibleTrackers[t.serial] = true;
   });
 
-  // 3. Re-render UI + map
   renderTrackerList();
   refreshMap();
 };
 
-
-/* ---------- INIT ---------- */
+/* ================= INIT ================= */
 document.addEventListener("DOMContentLoaded", initMap);
