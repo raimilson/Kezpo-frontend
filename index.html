@@ -5,11 +5,7 @@
   <title>Kezpo Tracker Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     body {
@@ -19,14 +15,12 @@
       overflow: hidden;
     }
 
-    /* ===== LAYOUT ===== */
     .app {
       display: flex;
       height: 100%;
       width: 100%;
     }
 
-    /* ===== SIDEBAR ===== */
     #sidebar {
       width: 380px;
       min-width: 500px;
@@ -39,22 +33,16 @@
       z-index: 1000;
     }
 
-    /* ===== MAP ===== */
     #map {
       flex: 1;
       height: 100%;
     }
 
-    /* ===== TRACKER ROW ===== */
     #trackerList div {
       display: flex;
       align-items: center;
       gap: 6px;
       margin-bottom: 6px;
-    }
-
-    #trackerList input[type="checkbox"] {
-      flex-shrink: 0;
     }
 
     #trackerList span {
@@ -70,7 +58,6 @@
       flex-shrink: 0;
     }
 
-    /* ===== TOGGLE BUTTON ===== */
     #toggleSidebar {
       position: fixed;
       top: 12px;
@@ -86,7 +73,12 @@
       display: none;
     }
 
-    /* ===== MOBILE RULES ===== */
+    .isolate-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
     @media (max-width: 768px) {
       #sidebar {
         position: fixed;
@@ -95,58 +87,43 @@
         height: 100%;
         transform: translateX(-100%);
       }
-
       #sidebar.open {
         transform: translateX(0);
       }
-
       #toggleSidebar {
         display: block;
-      }
-
-      .app {
-        flex-direction: column;
       }
     }
   </style>
 </head>
 
 <body>
-  <!-- MOBILE TOGGLE BUTTON -->
   <button id="toggleSidebar">☰ Trackers</button>
 
   <div class="app">
-    <!-- SIDEBAR -->
     <div id="sidebar">
       <h2>Trackers</h2>
+
+      <!-- NEW -->
+      <div class="isolate-controls">
+        <button id="isolateBtn">Isolate selected</button>
+        <button id="clearIsolationBtn">Clear</button>
+      </div>
+
       <div id="trackerList"></div>
     </div>
 
-    <!-- MAP -->
     <div id="map"></div>
   </div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Sidebar toggle logic -->
   <script>
     const sidebar = document.getElementById("sidebar");
-    const toggleBtn = document.getElementById("toggleSidebar");
-
-    toggleBtn.addEventListener("click", () => {
+    document.getElementById("toggleSidebar").onclick = () =>
       sidebar.classList.toggle("open");
-    });
-
-    // Hide sidebar when clicking map (mobile UX)
-    document.getElementById("map").addEventListener("click", () => {
-      if (window.innerWidth <= 768) {
-        sidebar.classList.remove("open");
-      }
-    });
   </script>
 
-  <!-- App JS -->
   <script src="./main.js"></script>
 </body>
 </html>
